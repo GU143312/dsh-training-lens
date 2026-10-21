@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Training Lens · 训练视窗</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href="/" aria-label="Training Lens"
+        ><span class="mark">↗</span
+        ><span>Training Lens <b data-i="brand">训练视窗</b></span></a
+      >
+      <div class="live">
+        <span id="dot" class="dot"></span
+        ><span id="connection" role="status"></span
+        ><button id="language" type="button">English</button>
+      </div>
+    </header>
+    <main>
+      <section class="heading">
+        <div>
+          <p class="eyebrow">TRAINING LENS</p>
+          <h1 data-i="headline">看见每一次训练的变化。</h1>
+          <p class="subtitle" data-i="subtitle">
+            从 TensorBoard 标量日志，读懂进展与趋势。
+          </p>
+        </div>
+        <span class="chip" data-i="local">本机 · 只读</span>
+      </section>
+      <section class="toolbar" aria-label="Monitor controls">
+        <div class="run-picker">
+          <label for="run" data-i="run">当前运行</label
+          ><select id="run"></select>
+        </div>
+        <div class="actions">
+          <button id="refresh" type="button" data-i="refresh">刷新</button
+          ><button id="pause" type="button" aria-pressed="false">
+            暂停刷新</button
+          ><span class="small muted" data-i="interval">每 5 秒</span>
+        </div>
+      </section>
+      <div id="error" class="notice error" role="alert" hidden></div>
+      <section id="empty" class="empty" hidden>
+        <h2 data-i="empty">等待标量记录</h2>
+        <p data-i="emptyHelp">训练器写入事件文件后，页面会自动更新。</p>
+      </section>
+      <div id="dashboard" hidden>
+        <section class="metric-controls panel">
+          <label for="primary" data-i="primary">主要指标</label
+          ><select id="primary"></select
+          ><label for="direction" data-i="direction">改善方向</label
+          ><select id="direction">
+            <option value="none" data-i="neutral">不预设</option>
+            <option value="max" data-i="maximize">越高越好</option>
+            <option value="min" data-i="minimize">越低越好</option>
+          </select>
+        </section>
+        <section class="overview" aria-label="Overview">
+          <article class="card progress-card">
+            <p class="kicker">
+              <span data-i="progress">已记录进度</span
+              ><span id="axis-badge" class="chip"></span>
+            </p>
+            <div class="progress-value">
+              <strong id="step">—</strong><span id="target"></span>
+            </div>
+            <progress
+              id="progress"
+              max="100"
+              value="0"
+              aria-label="Logged progress"
+            ></progress>
+            <p id="progress-note" class="small"></p>
+            <p id="freshness" class="small muted"></p>
+          </article>
+          <article class="card">
+            <p class="kicker" data-i="latest">主要指标 · 最新值</p>
+            <strong class="big" id="latest">—</strong>
+            <p id="metric-name" class="metric-note break"></p>
+            <p id="metric-step" class="small muted"></p>
+          </article>
+          <article class="card">
+            <p class="kicker" id="best-title"></p>
+            <strong class="big" id="best">—</strong>
+            <p id="best-note" class="metric-note"></p>
+            <p id="best-step" class="small muted"></p>
+          </article>
+          <article class="card">
+            <p class="kicker" data-i="change">较前一有效记录</p>
+            <strong class="big" id="change">—</strong>
+            <p id="change-note" class="metric-note"></p>
+            <p class="small muted" data-i="raw">卡片始终显示原始记录</p>
+          </article>
+        </section>
+        <section class="panel performance">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">TREND</p>
+              <h2 data-i="trend">主要指标如何变化</h2>
+            </div>
+            <label class="smoothing" for="smooth"
+              ><span data-i="smoothing">曲线平滑</span
+              ><select id="smooth">
+                <option value="0" data-i="off">关闭 · 原始值</option>
+                <option value="0.6">EMA 0.6</option>
+                <option value="0.9">EMA 0.9</option>
+              </select></label
+            >
+          </div>
+          <p id="metric-note" class="small muted"></p>
+          <div id="main-chart" class="chart"></div>
+          <p class="chart-caption" data-i="interpret">
+            请按指标定义判断变化方向。单条曲线不能单独证明训练收敛、模型泛化或任务成功。
+          </p>
+        </section>
+        <section class="lower-grid">
+          <article class="panel">
+            <div class="panel-heading">
+              <h2 data-i="secondary">辅助指标</h2>
+              <select id="secondary" aria-label="Secondary metric"></select>
+            </div>
+            <div id="second-chart" class="chart compact"></div>
+            <p class="chart-caption" data-i="independent">
+              辅助图使用自己的纵轴；不同指标的数值不可直接比较。
+            </p>
+          </article>
+          <article class="panel facts">
+            <p class="eyebrow">RUN SNAPSHOT</p>
+            <h2 data-i="snapshot">日志快照</h2>
+            <dl id="facts"></dl>
+            <p class="small muted" data-i="health">
+              状态仅反映日志新鲜度，不代表训练进程健康。
+            </p>
+          </article>
+        </section>
+        <details class="panel diagnostics" id="diagnostics">
+          <summary>
+            <span data-i="diagnostics">诊断与全部标量</span
+            ><span class="small muted" id="diagnostic-count"></span>
+          </summary>
+          <div id="warnings" class="notice" hidden></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i="tag">原始指标</th>
+                  <th data-i="value">最新值</th>
+                  <th data-i="atStep">对应 step</th>
+                  <th data-i="validCount">有效 / 总记录</th>
+                </tr>
+              </thead>
+              <tbody id="metric-table"></tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+      <footer>
+        <span data-i="footer">Training Lens · 日志留在本机</span
+        ><span id="updated"></span>
+        <p id="source"></p>
+      </footer>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,70 @@
+{
+  "name": "dsh-training-lens",
+  "version": "0.1.0",
+  "description": "Training Lens · 训练视窗 — a local, read-only TensorBoard scalar dashboard for DeepSeek Harness.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src/*.js",
+    "python/server.py",
+    "python/web/*.js",
+    "python/web/*.html",
+    "python/web/*.css",
+    "cordis.patch.yml",
+    "requirements.txt",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "license": "MIT",
+  "author": "GU143312",
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.1-rc.2 <0.3.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "tensorboard",
+    "training",
+    "monitoring",
+    "visualization"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GU143312/dsh-training-lens.git"
+  },
+  "homepage": "https://github.com/GU143312/dsh-training-lens#readme",
+  "bugs": {
+    "url": "https://github.com/GU143312/dsh-training-lens/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.2.1-rc.2 <0.3.0"
+  },
+  "dependencies": {
+    "@deepseek-ai/schemastery": "^3.18.4"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.2",
+    "prettier": "3.6.2"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "check": "node scripts/check-package.js",
+    "prepack": "npm run check && npm test"
+  }
+}
