@@ -113,7 +113,14 @@ test(
         (await manager.run("start", { logdir: dir })).pid,
         running.pid,
       );
-      assert.equal((await fetch(`${running.url}/api/snapshot`)).status, 200);
+      assert.equal(
+        (
+          await fetch(`${running.url}/api/snapshot`, {
+            signal: AbortSignal.timeout(5000),
+          })
+        ).status,
+        200,
+      );
       await assert.rejects(
         second.run("start", {
           logdir: dir,

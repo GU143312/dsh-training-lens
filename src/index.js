@@ -27,7 +27,7 @@ export const Config = Schema.object({
   startupTimeoutMs: Schema.number()
     .min(1000)
     .step(1)
-    .default(20000)
+    .default(60000)
     .description("Dashboard startup timeout / 启动超时（毫秒）"),
 });
 

@@ -14,7 +14,7 @@ export class MonitorManager {
       python: "python",
       port: 0,
       staleSeconds: 120,
-      startupTimeoutMs: 20000,
+      startupTimeoutMs: 60000,
       ...config,
     };
     this.current = null;

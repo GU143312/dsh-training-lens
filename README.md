@@ -73,7 +73,7 @@ Optional defaults in your profile's `cordis.patch.yml`:
     logdir: /absolute/path/to/runs
     port: 0
     staleSeconds: 120
-    startupTimeoutMs: 20000
+    startupTimeoutMs: 60000
 ```
 
 All runtime paths are provided by the user. No project-specific paths or datasets ship in the package.
