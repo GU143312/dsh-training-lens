@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Training Lens · 训练视窗</title>
     <link rel="stylesheet" href="/style.css" />
-    <script src="/app.js" defer></script>
+    <script src="/app.js" type="module"></script>
   </head>
   <body>
     <header>
@@ -42,12 +42,43 @@
           ><span class="small muted" data-i="interval">每 5 秒</span>
         </div>
       </section>
+      <p id="run-summary" class="small muted" role="status"></p>
       <div id="error" class="notice error" role="alert" hidden></div>
       <section id="empty" class="empty" hidden>
         <h2 data-i="empty">等待标量记录</h2>
         <p data-i="emptyHelp">训练器写入事件文件后，页面会自动更新。</p>
       </section>
       <div id="dashboard" hidden>
+        <section class="panel focus-settings">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">YOUR FOCUS</p>
+              <h2 data-i="focusTitle">这次训练，关注什么</h2>
+            </div>
+            <label for="scene"
+              ><span data-i="scene">训练场景</span>
+              <select id="scene">
+                <option value="general" data-i="scene_general">通用概览</option>
+                <option value="rl" data-i="scene_rl">
+                  强化学习 / 策略训练
+                </option>
+                <option value="supervised" data-i="scene_supervised">
+                  监督学习 / 微调
+                </option>
+                <option value="performance" data-i="scene_performance">
+                  采样与性能
+                </option>
+                <option value="custom" data-i="scene_custom">自定义关注</option>
+              </select>
+            </label>
+            <button id="reset-view" type="button" data-i="resetView">
+              重置为预设
+            </button>
+          </div>
+          <p id="focus-note" class="small muted"></p>
+          <p id="eval-notice" class="notice" hidden></p>
+          <p id="view-storage" class="small muted"></p>
+        </section>
         <section class="metric-controls panel">
           <label for="primary" data-i="primary">主要指标</label
           ><select id="primary"></select
@@ -57,44 +88,98 @@
             <option value="max" data-i="maximize">越高越好</option>
             <option value="min" data-i="minimize">越低越好</option>
           </select>
+          <button id="browse-metrics" type="button" data-i="browseMetrics">
+            查找指标
+          </button>
         </section>
-        <section class="overview" aria-label="Overview">
-          <article class="card progress-card">
-            <p class="kicker">
-              <span data-i="progress">已记录进度</span
-              ><span id="axis-badge" class="chip"></span>
-            </p>
-            <div class="progress-value">
-              <strong id="step">—</strong><span id="target"></span>
-            </div>
-            <progress
-              id="progress"
-              max="100"
-              value="0"
-              aria-label="Logged progress"
-            ></progress>
-            <p id="progress-note" class="small"></p>
-            <p id="freshness" class="small muted"></p>
-          </article>
-          <article class="card">
-            <p class="kicker" data-i="latest">主要指标 · 最新值</p>
-            <strong class="big" id="latest">—</strong>
-            <p id="metric-name" class="metric-note break"></p>
-            <p id="metric-step" class="small muted"></p>
-          </article>
-          <article class="card">
-            <p class="kicker" id="best-title"></p>
-            <strong class="big" id="best">—</strong>
-            <p id="best-note" class="metric-note"></p>
-            <p id="best-step" class="small muted"></p>
-          </article>
-          <article class="card">
-            <p class="kicker" data-i="change">较前一有效记录</p>
-            <strong class="big" id="change">—</strong>
-            <p id="change-note" class="metric-note"></p>
-            <p class="small muted" data-i="raw">卡片始终显示原始记录</p>
-          </article>
-        </section>
+        <section
+          id="watchlist"
+          class="watchlist"
+          aria-label="Focus metrics"
+        ></section>
+        <details class="panel metric-library" id="metric-library">
+          <summary>
+            <span data-i="library">查找与管理指标</span
+            ><span id="library-count" class="small muted"></span>
+          </summary>
+          <div class="library-tools">
+            <label for="metric-search" data-i="search">搜索指标名称</label>
+            <input
+              id="metric-search"
+              type="search"
+              autocomplete="off"
+              placeholder="eval / reward / episodes / loss"
+            />
+            <label for="metric-group" data-i="group">分组</label>
+            <select id="metric-group">
+              <option value="all" data-i="group_all">全部</option>
+              <option value="eval" data-i="group_eval">评估 / 验证</option>
+              <option value="train" data-i="group_train">训练表现</option>
+              <option value="progress" data-i="group_progress">
+                进度 / 采样
+              </option>
+              <option value="optimization" data-i="group_optimization">
+                损失 / 优化
+              </option>
+              <option value="system" data-i="group_system">性能 / 资源</option>
+              <option value="other" data-i="group_other">其他</option>
+            </select>
+          </div>
+          <p id="search-empty" class="small muted" hidden></p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i="tag">原始指标</th>
+                  <th data-i="value">最新值</th>
+                  <th data-i="atStep">对应 step</th>
+                  <th data-i="display">显示位置</th>
+                </tr>
+              </thead>
+              <tbody id="library-table"></tbody>
+            </table>
+          </div>
+        </details>
+        <details class="metric-stats">
+          <summary data-i="metricStats">主要指标详细统计</summary>
+          <section class="overview" aria-label="Overview">
+            <article class="card progress-card">
+              <p class="kicker">
+                <span data-i="progress">已记录进度</span
+                ><span id="axis-badge" class="chip"></span>
+              </p>
+              <div class="progress-value">
+                <strong id="step">—</strong><span id="target"></span>
+              </div>
+              <progress
+                id="progress"
+                max="100"
+                value="0"
+                aria-label="Logged progress"
+              ></progress>
+              <p id="progress-note" class="small"></p>
+              <p id="freshness" class="small muted"></p>
+            </article>
+            <article class="card">
+              <p class="kicker" data-i="latest">主要指标 · 最新值</p>
+              <strong class="big" id="latest">—</strong>
+              <p id="metric-name" class="metric-note break"></p>
+              <p id="metric-step" class="small muted"></p>
+            </article>
+            <article class="card">
+              <p class="kicker" id="best-title"></p>
+              <strong class="big" id="best">—</strong>
+              <p id="best-note" class="metric-note"></p>
+              <p id="best-step" class="small muted"></p>
+            </article>
+            <article class="card">
+              <p class="kicker" data-i="change">较前一有效记录</p>
+              <strong class="big" id="change">—</strong>
+              <p id="change-note" class="metric-note"></p>
+              <p class="small muted" data-i="raw">卡片始终显示原始记录</p>
+            </article>
+          </section>
+        </details>
         <section class="panel performance">
           <div class="panel-heading">
             <div>

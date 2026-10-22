@@ -180,6 +180,7 @@ h3 {
   color: var(--muted);
 }
 select,
+input,
 button {
   color: var(--ink);
   font: inherit;
@@ -191,6 +192,7 @@ button {
   padding: 8px 11px;
 }
 select:focus-visible,
+input:focus-visible,
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible {
@@ -619,5 +621,173 @@ footer p {
   }
   .empty {
     padding: 35px 15px;
+  }
+}
+
+/* The DSH launcher already supplies the title and controls. */
+.embedded .heading {
+  display: none;
+}
+.embedded header {
+  padding: 10px 18px;
+}
+.embedded main {
+  padding: 16px 18px;
+}
+.embedded .toolbar {
+  margin-bottom: 12px;
+}
+.embedded .overview {
+  gap: 10px;
+  margin: 12px 0;
+}
+.embedded .card {
+  padding: 14px;
+}
+
+.focus-settings {
+  padding: 18px 22px;
+}
+.focus-settings .panel-heading {
+  margin-bottom: 8px;
+}
+.focus-settings label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.focus-settings p.small {
+  margin: 4px 0;
+}
+#run-summary {
+  margin: -10px 0 18px;
+}
+.watchlist {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.watchlist > p {
+  grid-column: 1 / -1;
+}
+.focus-card {
+  padding: 18px 20px;
+  border-top: 3px solid #adc8be;
+}
+.focus-card h3 {
+  min-height: 34px;
+  margin: 0 0 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.focus-card .big {
+  display: block;
+  font-size: 30px;
+  overflow-wrap: anywhere;
+}
+.focus-actions {
+  display: flex;
+  gap: 7px;
+  margin-top: 12px;
+}
+.focus-actions button,
+.table-actions button {
+  font-size: 11px;
+  min-height: 30px;
+  padding: 5px 8px;
+}
+.metric-library summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.metric-library summary::before {
+  content: "+";
+  color: var(--teal);
+}
+.metric-library[open] summary::before {
+  content: "−";
+}
+.metric-library summary span:first-child {
+  flex: 1;
+}
+.library-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 12px;
+}
+.library-tools input {
+  flex: 1;
+  min-width: 100px;
+}
+.library-tools label {
+  color: var(--muted);
+}
+.metric-library td:first-child {
+  min-width: 170px;
+  overflow-wrap: anywhere;
+}
+.metric-library td small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-family: "Segoe UI", sans-serif;
+}
+.table-actions {
+  min-width: 185px;
+}
+.table-actions button {
+  margin: 3px;
+}
+.metric-stats > summary {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 18px;
+}
+@media (max-width: 900px) {
+  .watchlist {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .focus-settings .panel-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .metric-controls {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 680px) {
+  .library-tools {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .focus-settings label {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  #scene {
+    max-width: 100%;
+  }
+  .focus-card {
+    padding: 14px;
+  }
+  .focus-card .big {
+    font-size: 25px;
+  }
+  #browse-metrics {
+    grid-column: 1 / -1;
+  }
+  .metric-library summary {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 400px) {
+  .watchlist {
+    grid-template-columns: 1fr;
   }
 }

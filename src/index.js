@@ -1,6 +1,9 @@
 import Schema from "@deepseek-ai/schemastery";
 import { defineTool } from "@deepseek-ai/dsh-tools";
-import { MonitorManager } from "./manager.js";
+import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { LensController } from "./controller.js";
+import { TrainingLensService } from "./service.js";
 
 export const name = "training-lens";
 export const inject = ["tools"];
@@ -29,10 +32,22 @@ export const Config = Schema.object({
     .step(1)
     .default(60000)
     .description("Dashboard startup timeout / 启动超时（毫秒）"),
+  startMode: Schema.union(["manual", "startup", "activity"])
+    .default("manual")
+    .description(
+      "Manual, with DSH, or on TensorBoard writes / 手动、随 DSH 启动、日志写入时启动",
+    ),
 });
 
 export function apply(ctx, config) {
-  const manager = new MonitorManager(config);
+  const stateFile = ctx.baseUrl
+    ? join(
+        fileURLToPath(new URL(".", ctx.baseUrl)),
+        "training-lens.settings.json",
+      )
+    : undefined;
+  const manager = new LensController(config, { stateFile });
+  if (typeof ctx.provide === "function") new TrainingLensService(ctx, manager);
   ctx.effect(() => () => manager.dispose());
   ctx.tools.register(
     defineTool({

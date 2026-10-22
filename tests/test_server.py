@@ -92,6 +92,10 @@ class DiscoveryTests(unittest.TestCase):
             with urlopen(base + "/") as response:
                 self.assertIn("Training Lens", response.read().decode())
                 self.assertIn("default-src 'self'", response.headers["Content-Security-Policy"])
+                self.assertIn("frame-ancestors http://127.0.0.1:* http://localhost:*", response.headers["Content-Security-Policy"])
+            with urlopen(base + "/metrics.js") as response:
+                self.assertIn("export function recommend", response.read().decode())
+                self.assertIn("text/javascript", response.headers["Content-Type"])
             with self.assertRaises(HTTPError) as error:
                 urlopen(base + "/../config.yaml")
             self.assertEqual(error.exception.code, 404)
@@ -156,6 +160,28 @@ class EventIntegrationTests(unittest.TestCase):
         self.assertEqual(result["series"]["eval/success_rate"]["latest"][1], .75)
         self.assertEqual(result["axis"], "日志 step")
         self.assertIsNone(result["target"])
+
+    def test_runs_with_different_metrics_and_late_evaluation_stay_independent(self):
+        from tensorboard.summary.writer.event_file_writer import EventFileWriter
+        from tensorboard.compat.proto.event_pb2 import Event
+        from tensorboard.compat.proto.summary_pb2 import Summary
+        self.write("Train/Episodes total", 50, 25)
+        other = EventFileWriter(str(self.root / "run with evaluation"))
+        try:
+            other.add_event(Event(wall_time=time.time(), step=2000,
+                                 summary=Summary(value=[Summary.Value(tag="Evaluation/Mean reward", simple_value=10)])))
+            other.flush()
+            store = EventStore(self.root, cache_seconds=0)
+            first = store.snapshot("run 中文")
+            second = store.snapshot("run with evaluation")
+            self.assertEqual(list(first["series"]), ["Train/Episodes total"])
+            self.assertEqual(list(second["series"]), ["Evaluation/Mean reward"])
+            self.write("Evaluation/Mean reward", 60, -2)
+            updated = store.snapshot("run 中文")
+            self.assertEqual(updated["series"]["Evaluation/Mean reward"]["latest"][1], -2)
+            self.assertEqual(store.snapshot("run with evaluation")["series"]["Evaluation/Mean reward"]["latest"][1], 10)
+        finally:
+            other.close()
 
 
 if __name__ == "__main__":
