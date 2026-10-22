@@ -621,3 +621,24 @@ footer p {
     padding: 35px 15px;
   }
 }
+
+/* The DSH launcher already supplies the title and controls. */
+.embedded .heading {
+  display: none;
+}
+.embedded header {
+  padding: 10px 18px;
+}
+.embedded main {
+  padding: 16px 18px;
+}
+.embedded .toolbar {
+  margin-bottom: 12px;
+}
+.embedded .overview {
+  gap: 10px;
+  margin: 12px 0;
+}
+.embedded .card {
+  padding: 14px;
+}

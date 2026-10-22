@@ -4,13 +4,16 @@ import assert from "node:assert/strict";
 const manifest = JSON.parse(await readFile("package.json", "utf8"));
 assert.equal(manifest.name, "dsh-training-lens");
 assert.equal(manifest.dsh.bundle.patch, "./cordis.patch.yml");
+assert.equal(manifest.dsh.client.platform, "web");
+for (const entry of ["./client", "./typert", "./remote"])
+  await readFile(manifest.exports[entry]);
 assert.equal(
   manifest.scripts.prepare,
   undefined,
   "Package must ship runnable code without install hooks",
 );
 assert.equal(manifest.scripts.postinstall, undefined);
-const roots = ["src", "python"];
+const roots = ["src", "python", "dist"];
 async function visit(path) {
   for (const e of await readdir(path, { withFileTypes: true })) {
     const file = join(path, e.name);

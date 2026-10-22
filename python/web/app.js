@@ -1,4 +1,8 @@
 "use strict";
+document.documentElement.classList.toggle(
+  "embedded",
+  new URLSearchParams(location.search).get("embedded") === "1",
+);
 const $ = (id) => document.getElementById(id);
 let snapshot = null,
   selected = null,

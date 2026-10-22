@@ -92,6 +92,7 @@ class DiscoveryTests(unittest.TestCase):
             with urlopen(base + "/") as response:
                 self.assertIn("Training Lens", response.read().decode())
                 self.assertIn("default-src 'self'", response.headers["Content-Security-Policy"])
+                self.assertIn("frame-ancestors http://127.0.0.1:* http://localhost:*", response.headers["Content-Security-Policy"])
             with self.assertRaises(HTTPError) as error:
                 urlopen(base + "/../config.yaml")
             self.assertEqual(error.exception.code, 404)
