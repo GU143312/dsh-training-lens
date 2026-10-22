@@ -32,7 +32,7 @@ ALIASES = {
 CONFIG_KEYS = ("training_epochs", "num_rollout_workers", "logging_aggregation_epochs",
                "num_expansions", "train_batch_size", "learning_rate")
 ASSETS = Path(__file__).with_name("web")
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 
 
 class LocalHTTPServer(ThreadingHTTPServer):
@@ -234,6 +234,7 @@ def make_handler(store):
                     self.respond(503, json.dumps({"error": "暂时无法读取事件日志；页面会自动重试。"}, ensure_ascii=False).encode(), "application/json")
                 return
             paths = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
+                     "/metrics.js": ("metrics.js", "text/javascript"),
                      "/style.css": ("style.css", "text/css")}
             if route.path not in paths:
                 self.respond(404, b"Not found", "text/plain")

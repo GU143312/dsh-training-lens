@@ -1,4 +1,16 @@
 "use strict";
+import {
+  GROUPS,
+  MAX_PINS,
+  describeMetric,
+  sortedMetrics,
+  normalizeView,
+  resolveView,
+  filterMetrics,
+  loadView,
+  saveView,
+  viewKey,
+} from "./metrics.js";
 document.documentElement.classList.toggle(
   "embedded",
   new URLSearchParams(location.search).get("embedded") === "1",
@@ -10,7 +22,84 @@ let snapshot = null,
   controller = null,
   requestId = 0;
 let lang = navigator.language.startsWith("zh") ? "zh" : "en";
+let view = normalizeView(null),
+  activeViewKey = null,
+  storageAvailable = true;
+const viewCache = new Map();
+let storage;
+try {
+  storage = window.localStorage;
+} catch {
+  storageAvailable = false;
+}
 const copy = {
+  focusTitle: ["这次训练，关注什么", "What matters in this run"],
+  scene: ["训练场景", "Training scenario"],
+  resetView: ["重置为预设", "Reset to preset"],
+  scene_general: ["通用概览", "General overview"],
+  scene_rl: ["强化学习 / 策略训练", "Reinforcement learning / Policies"],
+  scene_supervised: ["监督学习 / 微调", "Supervised learning / Fine-tuning"],
+  scene_performance: ["采样与性能", "Sampling & performance"],
+  scene_custom: ["自定义关注", "Custom focus"],
+  group_all: ["全部", "All"],
+  group_eval: ["评估 / 验证", "Evaluation / Validation"],
+  group_train: ["训练表现", "Training performance"],
+  group_progress: ["进度 / 采样", "Progress / Sampling"],
+  group_optimization: ["损失 / 优化", "Loss / Optimization"],
+  group_system: ["性能 / 资源", "Performance / Resources"],
+  group_other: ["其他", "Other"],
+  browseMetrics: ["查找指标", "Find metrics"],
+  library: ["查找与管理指标", "Find & organize metrics"],
+  search: ["搜索指标名称", "Search metric names"],
+  group: ["分组", "Group"],
+  display: ["显示位置", "Display"],
+  mainChart: ["主图", "Main chart"],
+  secondChart: ["副图", "Second chart"],
+  pin: ["关注", "Pin"],
+  unpin: ["取消关注", "Unpin"],
+  metricStats: ["主要指标详细统计", "Primary metric statistics"],
+  nameHints: [
+    "预设和分组按指标名称推荐，可随时调整；改善方向由你指定。",
+    "Presets and groups are name-based suggestions. Adjust them freely; choose the objective yourself.",
+  ],
+  autoChoice: [
+    "主图自动推荐；后续出现评估记录时会更新。",
+    "Main chart uses suggestions and can update when evaluation metrics arrive.",
+  ],
+  manualChoice: [
+    "主图已固定为你的选择。",
+    "Main chart is pinned to your choice.",
+  ],
+  storedView: [
+    "按日志目录和运行分别记忆，在此浏览器地址下保留。",
+    "Views are remembered per log directory and run at this browser address.",
+  ],
+  temporaryView: [
+    "浏览器存储不可用，选择仅在本次页面中保留。",
+    "Browser storage is unavailable. Choices last for this page session.",
+  ],
+  noEval: [
+    "当前运行没有识别到 eval / evaluation / val / validation 类标量。可能尚未写入评估结果，或评估保存在另一个运行目录；可切换上方“当前运行”检查。没有记录不等于结果为 0。",
+    "No eval / evaluation / val / validation scalar names were found in this run. Evaluation may not have been written yet, or may be in another run directory. Check the Run selector above. Missing data is not a zero result.",
+  ],
+  noMatches: [
+    "没有匹配项。清空搜索或切换分组；若当前运行没有这个指标，请检查其他运行或训练器的日志配置。",
+    "No matches. Clear the search or change groups. If this run has no such metric, check another run or your trainer's logging configuration.",
+  ],
+  noPins: [
+    "还没有关注项。展开“查找与管理指标”，可添加最多 6 个关注卡片。",
+    "No pinned metrics yet. Open Find & organize metrics to pin up to six cards.",
+  ],
+  notRecorded: ["当前运行未记录", "Not recorded in this run"],
+  pinLimit: [
+    "最多关注 6 个指标，请先取消一个。",
+    "Up to six metrics can be pinned. Unpin one first.",
+  ],
+  shown: ["显示", "Showing"],
+  currentRunOnly: [
+    "仅显示当前运行的标量；不同运行的记录独立。",
+    "Scalars belong to the selected run; each run has independent records.",
+  ],
   brand: ["训练视窗", "Training dashboard"],
   headline: ["看见每一次训练的变化。", "See how your training is changing."],
   subtitle: [
@@ -177,6 +266,184 @@ function setOptions(id, tags, prefer) {
         : (tags[0] ?? "");
   }
 }
+function metricOptions(id, tags, chosen) {
+  const el = $(id),
+    signature = JSON.stringify([
+      lang,
+      tags,
+      tags.includes(chosen) ? "" : chosen,
+    ]);
+  if (el.dataset.options !== signature) {
+    el.replaceChildren();
+    for (const group of GROUPS) {
+      const members = tags.filter((tag) => describeMetric(tag).group === group);
+      if (!members.length) continue;
+      const section = document.createElement("optgroup");
+      section.label = t(`group_${group}`);
+      for (const tag of members) {
+        const option = document.createElement("option");
+        option.value = tag;
+        option.textContent = tag;
+        section.append(option);
+      }
+      el.append(section);
+    }
+    if (chosen && !tags.includes(chosen)) {
+      const option = document.createElement("option");
+      option.value = chosen;
+      option.textContent = `${t("notRecorded")} · ${chosen}`;
+      el.prepend(option);
+    }
+    el.dataset.options = signature;
+  }
+  el.value = chosen;
+}
+function commitView() {
+  if (!snapshot?.selected) return;
+  view = normalizeView(view);
+  viewCache.set(activeViewKey, view);
+  storageAvailable = saveView(storage, snapshot.root, snapshot.selected, view);
+  render(snapshot);
+}
+function metricAction(action, tag) {
+  if (!snapshot) return;
+  if (action === "primary" || action === "secondary") view[action] = tag;
+  if (action === "pin") {
+    const pins = resolveView(view, Object.keys(snapshot.series)).pins;
+    if (!pins.includes(tag) && pins.length >= MAX_PINS) {
+      text("search-empty", t("pinLimit"));
+      $("search-empty").hidden = false;
+      return;
+    }
+    view.pins = pins.includes(tag)
+      ? pins.filter((item) => item !== tag)
+      : [...pins, tag];
+  }
+  commitView();
+}
+function actionButton(action, tag, label, pressed = false) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.dataset.action = action;
+  button.dataset.tag = tag;
+  button.textContent = label;
+  button.setAttribute("aria-label", `${label} · ${tag}`);
+  button.setAttribute("aria-pressed", String(pressed));
+  return button;
+}
+function restoreActionFocus(container, active) {
+  if (!active?.tag || !active.action) return;
+  const button = [...container.querySelectorAll("button")].find(
+    (item) =>
+      item.dataset.tag === active.tag && item.dataset.action === active.action,
+  );
+  button?.focus({ preventScroll: true });
+}
+function renderWatchlist(current) {
+  const container = $("watchlist"),
+    active = container.contains(document.activeElement)
+      ? { ...document.activeElement.dataset }
+      : null;
+  container.replaceChildren();
+  if (!current.pins.length) {
+    const note = document.createElement("p");
+    note.className = "small muted";
+    note.textContent = t("noPins");
+    container.append(note);
+  }
+  for (const tag of current.pins) {
+    const series = snapshot.series[tag],
+      card = document.createElement("article");
+    card.className = "card focus-card";
+    const category = document.createElement("p");
+    category.className = "eyebrow";
+    category.textContent = t(`group_${describeMetric(tag).group}`);
+    const name = document.createElement("h3");
+    name.className = "break";
+    name.textContent = tag;
+    const value = document.createElement("strong");
+    value.className = "big";
+    value.textContent = fmt(series?.latest?.[1], 4);
+    const note = document.createElement("p");
+    note.className = "small muted";
+    note.textContent = series?.count
+      ? `${at(series.latest)} · ${age(series.latest_wall == null ? null : Math.max(0, snapshot.generated_at - series.latest_wall))}`
+      : t("notRecorded");
+    const controls = document.createElement("div");
+    controls.className = "focus-actions";
+    controls.append(
+      actionButton("primary", tag, t("mainChart"), current.primary === tag),
+      actionButton("pin", tag, t("unpin"), true),
+    );
+    card.append(category, name, value, note, controls);
+    container.append(card);
+  }
+  restoreActionFocus(container, active);
+}
+function renderLibrary() {
+  if (!snapshot) return;
+  const tags = Object.keys(snapshot.series).filter(
+    (tag) => snapshot.series[tag].count,
+  );
+  const matches = filterMetrics(
+      tags,
+      $("metric-search").value,
+      $("metric-group").value,
+    ),
+    current = resolveView(view, tags);
+  text(
+    "library-count",
+    `${t("shown")} ${Math.min(matches.length, 100)} / ${matches.length} · ${tags.length} ${t("metrics")}`,
+  );
+  text("search-empty", t("noMatches"));
+  $("search-empty").hidden = !!matches.length;
+  if (!$("metric-library").open) return;
+  const container = $("library-table"),
+    active = container.contains(document.activeElement)
+      ? { ...document.activeElement.dataset }
+      : null;
+  container.replaceChildren(
+    ...matches.slice(0, 100).map((tag) => {
+      const series = snapshot.series[tag],
+        row = document.createElement("tr");
+      const name = document.createElement("td"),
+        label = document.createElement("span"),
+        group = document.createElement("small");
+      label.textContent = tag;
+      group.textContent = t(`group_${describeMetric(tag).group}`);
+      name.append(label, group);
+      row.append(name);
+      for (const value of [
+        fmt(series.latest?.[1], 6),
+        fmt(series.latest?.[0], 0),
+      ]) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.append(cell);
+      }
+      const actions = document.createElement("td");
+      actions.className = "table-actions";
+      actions.append(
+        actionButton("primary", tag, t("mainChart"), current.primary === tag),
+        actionButton(
+          "secondary",
+          tag,
+          t("secondChart"),
+          current.secondary === tag,
+        ),
+        actionButton(
+          "pin",
+          tag,
+          t(current.pins.includes(tag) ? "unpin" : "pin"),
+          current.pins.includes(tag),
+        ),
+      );
+      row.append(actions);
+      return row;
+    }),
+  );
+  restoreActionFocus(container, active);
+}
 function chart(id, tag, color) {
   const container = $(id),
     data = snapshot.series[tag];
@@ -314,9 +581,21 @@ function render(data) {
   );
   selected = data.selected;
   $("run").value = selected ?? "";
-  const tags = Object.keys(data.series)
-    .filter((tag) => data.series[tag].count)
-    .sort();
+  const tags = sortedMetrics(
+    Object.keys(data.series).filter((tag) => data.series[tag].count),
+  );
+  const key = viewKey(data.root, data.selected);
+  if (key !== activeViewKey) {
+    activeViewKey = key;
+    view = viewCache.get(key) ?? loadView(storage, data.root, data.selected);
+    $("metric-search").value = "";
+    $("metric-group").value = "all";
+  }
+  const evalCount = tags.filter((tag) => describeMetric(tag).evaluation).length;
+  text(
+    "run-summary",
+    `${tags.length} ${t("metrics")} · ${t("group_eval")} ${evalCount} · ${t("currentRunOnly")}`,
+  );
   $("empty").hidden = !!tags.length;
   $("dashboard").hidden = !tags.length;
   text("source", `${t("source")}: ${data.root}`);
@@ -339,17 +618,22 @@ function render(data) {
   $("dot").className =
     `dot ${data.freshness === "recent" && !paused ? "" : "waiting"}`;
   if (!tags.length) return;
-  const prefer =
-    data.metrics.eval_reward ??
-    tags.find((s) => /val.*loss|eval.*loss/i.test(s)) ??
-    tags[0];
-  setOptions("primary", tags, prefer);
-  setOptions(
-    "secondary",
-    tags,
-    data.metrics.train_reward ?? tags.find((s) => s !== $("primary").value),
+  const current = resolveView(view, tags);
+  $("scene").value = current.scene;
+  $("direction").value = current.direction;
+  $("smooth").value = current.smooth;
+  metricOptions("primary", tags, current.primary);
+  metricOptions("secondary", tags, current.secondary);
+  text(
+    "focus-note",
+    `${t("nameHints")} ${t(view.primary ? "manualChoice" : "autoChoice")}`,
   );
-  const primary = data.series[$("primary").value],
+  text("eval-notice", t("noEval"));
+  $("eval-notice").hidden = !!evalCount;
+  text("view-storage", t(storageAvailable ? "storedView" : "temporaryView"));
+  renderWatchlist(current);
+  renderLibrary();
+  const primary = data.series[$("primary").value] ?? { count: 0 },
     last = primary.latest,
     previous = primary.previous_finite,
     direction = $("direction").value;
@@ -499,18 +783,51 @@ async function refresh(force = false) {
 }
 $("run").addEventListener("change", () => {
   selected = $("run").value;
-  $("primary").replaceChildren();
-  $("secondary").replaceChildren();
-  $("direction").value = "none";
   refresh(true);
 });
 $("primary").addEventListener("change", () => {
-  $("direction").value = "none";
-  if (snapshot) render(snapshot);
+  view.primary = $("primary").value;
+  commitView();
 });
-["secondary", "smooth", "direction"].forEach((id) =>
+["secondary", "smooth"].forEach((id) =>
   $(id).addEventListener("change", () => {
-    if (snapshot) render(snapshot);
+    view[id] = $(id).value;
+    commitView();
+  }),
+);
+$("direction").addEventListener("change", () => {
+  view.objectives = Object.fromEntries([
+    ...Object.entries(view.objectives),
+    [$("primary").value, $("direction").value],
+  ]);
+  commitView();
+});
+$("scene").addEventListener("change", () => {
+  const previous = resolveView(view, Object.keys(snapshot?.series ?? {}));
+  view.scene = $("scene").value;
+  view.primary = view.scene === "custom" ? previous.primary : null;
+  view.secondary = view.scene === "custom" ? previous.secondary : null;
+  view.pins = view.scene === "custom" ? previous.pins : null;
+  commitView();
+});
+$("reset-view").addEventListener("click", () => {
+  view.primary = null;
+  view.secondary = null;
+  view.pins = null;
+  commitView();
+});
+$("browse-metrics").addEventListener("click", () => {
+  $("metric-library").open = true;
+  renderLibrary();
+  $("metric-search").focus();
+});
+$("metric-library").addEventListener("toggle", renderLibrary);
+$("metric-search").addEventListener("input", renderLibrary);
+$("metric-group").addEventListener("change", renderLibrary);
+["library-table", "watchlist"].forEach((id) =>
+  $(id).addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (button) metricAction(button.dataset.action, button.dataset.tag);
   }),
 );
 $("refresh").addEventListener("click", () => refresh(true));

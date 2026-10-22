@@ -11,6 +11,7 @@ Screenshot uses generated demonstration data, not a training result.
 ## Features
 
 - Choose any primary and secondary scalar: reward, validation loss, accuracy, learning rate, or a custom tag.
+- Scenario presets, searchable metric groups and up to six pinned cards keep evaluation, episode counts and losses visible together.
 - Explicit **higher / lower is better** selection. By default, show the observed range without declaring improvement.
 - Raw values, optional EMA smoothing, per-metric steps and expandable diagnostics.
 - Chinese / English UI, responsive layout, automatic refresh and run selection.
@@ -21,19 +22,21 @@ Screenshot uses generated demonstration data, not a training result.
 
 Requires DSH **0.2.1-rc.2** (tested), Node 22+, and Python 3.10+ with TensorBoard. Compatibility outside the declared DSH 0.2 range is not assumed.
 
-Install the versioned release artifact:
+The currently published npm version is **0.1.0**. This development branch prepares **0.3.0**, including the launcher and scenario views described below; it has not yet been published to npm.
+
+Install the current public version:
 
 ```sh
-dsh plugin --profile desktop add dsh-training-lens@0.2.0
+dsh plugin --profile desktop add dsh-training-lens@0.1.0
 ```
 
-Or install the source bundle (plain JavaScript, no install-time build):
+To preview this branch, install its prepared local package (plain JavaScript, no install-time build):
 
 ```sh
-dsh plugin --profile desktop add github:GU143312/dsh-training-lens#v0.2.0
+dsh plugin --profile desktop add /absolute/path/to/dsh-training-lens-0.3.0.tgz
 ```
 
-Reload the plugin or restart DSH once when convenient. Use your own profile name in place of `desktop` if needed. For local testing: `dsh plugin --profile lens-test add /absolute/path/to/dsh-training-lens-0.1.0.tgz`.
+Reload the plugin and refresh the page, or restart DSH once when convenient. Use your own profile name in place of `desktop` if needed.
 
 The Python helper uses your existing training environment. If TensorBoard is missing, install the optional Python dependencies **with that interpreter**, from a source checkout:
 
@@ -42,6 +45,16 @@ python -m pip install -r requirements.txt
 ```
 
 The plugin never runs pip automatically. You can also install a downloaded GitHub Release `.tgz` with the same DSH `add` command.
+
+## Choose a focus for each run
+
+The metric list is populated from **the selected run's actual scalar events**, not a fixed list. A run with only counters may have five tags while another has evaluation rewards and network losses. The run summary shows scalar and evaluation-name counts. If evaluation tags are absent, the page suggests checking evaluation logging and other run directories; it never fills missing results with zero or merges separate runs.
+
+Select **General**, **Reinforcement learning**, **Supervised learning / Fine-tuning**, **Sampling & performance**, or **Custom**. Presets suggest existing tags by name. RL favors evaluation rewards, training rewards, total episodes, policy/value loss and throughput; supervised views favor validation loss and accuracy. These are editable suggestions, not a diagnosis of the training task. Improvement direction is always your choice, saved separately for each primary metric.
+
+Use **Find metrics** to search tags such as `eval`, `episodes` or `loss`, filter by group, choose a main/secondary chart or pin up to six cards. Each card shows its own recorded step and freshness. Detailed statistics are expandable. Preset changes reset metric suggestions; **Custom** preserves your current selection, and **Reset to preset** restores automatic choices. Automatic choices can adopt evaluation tags logged later; a manually chosen main metric remains fixed.
+
+Metric choices, pinned cards, smoothing and objectives are saved separately for each log root and run in browser local storage. Refreshing or switching runs preserves them at the **same browser origin**. A different host/port or cleared browser storage starts fresh; launcher settings are stored separately in the DSH profile. No preferences are written to training logs. Unknown/custom metric names remain searchable and selectable, even if name-based grouping does not recognize their semantics.
 
 ## One-click launcher and automatic startup
 

@@ -1,6 +1,6 @@
 {
   "name": "dsh-training-lens",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Training Lens · 训练视窗 — a local, read-only TensorBoard scalar dashboard for DeepSeek Harness.",
   "type": "module",
   "main": "src/index.js",
